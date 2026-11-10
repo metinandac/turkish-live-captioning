@@ -18,12 +18,16 @@ def main() -> None:
     mic = commands.add_parser("mic-check", help="Mikrofon süresini ve ses seviyesini göster")
     mic.add_argument("--seconds", type=float, default=5, help="Yakalama süresi (saniye, varsayılan: 5)")
     mic.add_argument("--device", help="Giriş cihazının numarası veya adı; varsayılan: sistem mikrofonu")
+    streaming = commands.add_parser("live", help="Mikrofondan canlı Türkçe altyazı")
+    streaming.add_argument("--model", default="small", help="Çok dilli model (varsayılan: small)")
+    streaming.add_argument("--device", help="Mikrofon numarası veya adı")
+    streaming.add_argument("--seconds", type=float, help="İsteğe bağlı oturum süresi")
     args = parser.parse_args()
     if args.command is None:
         parser.print_help()
         return
-    if args.command == "mic-check":
-        if not math.isfinite(args.seconds) or args.seconds <= 0:
+    if args.command in ("mic-check", "live"):
+        if args.seconds is not None and (not math.isfinite(args.seconds) or args.seconds <= 0):
             parser.error("--seconds sonlu ve sıfırdan büyük olmalıdır.")
         from .microphone import mic_check
 
@@ -34,7 +38,11 @@ def main() -> None:
             except ValueError:
                 pass
         try:
-            mic_check(args.seconds, device)
+            if args.command == "live":
+                from .live import live
+                live(args.model, device, args.seconds)
+            else:
+                mic_check(args.seconds, device)
         except KeyboardInterrupt:
             print("\nDurduruldu; mikrofon serbest bırakıldı.")
         except Exception as exc:

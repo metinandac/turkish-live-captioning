@@ -7,6 +7,8 @@ Ses ve görüntü destekli, konuşmacı ayrıştırmalı Türkçe canlı altyaz�
 İşlem CPU üzerinde int8 ile çalışır. **Aşama 02**, bağımsız mikrofon kontrolü
 ekler. Kamera ve arayüz henüz eklenmemiştir.
 
+**Aşama 03**, mikrofon sesinden terminalde geçici ve kesin Türkçe altyazı üretir.
+
 PyAV bağımlılığı `av<19` ile sınırlandırılır: faster-whisper 1.2.1'in kullandığı
 `metadata_errors` argümanı PyAV 19'da kaldırılmıştır. Kurulum komutu uyumlu
 PyAV sürümünü de seçer.
@@ -94,3 +96,66 @@ bir `--seconds 30` denemesini Ctrl+C ile durdurun.
 
 Windows pip kurulumu PortAudio'yu beraberinde getirir:
 [sounddevice kurulum belgeleri](https://github.com/spatialaudio/python-sounddevice/blob/master/doc/installation.rst).
+
+## Canlı Türkçe altyazı (Aşama 03)
+
+Repo kökünde Windows PowerShell / VS Code terminalinde:
+
+```powershell
+.\.venv\Scripts\python.exe -m turkce_altyazi live --model small
+```
+
+Varsayılan mikrofon kullanılır. `--device` ile cihaz numarası veya adı seçilebilir.
+Süreli bir deneme için:
+
+```powershell
+.\.venv\Scripts\python.exe -m turkce_altyazi live --model small --seconds 20
+```
+
+İlk model yüklemesi mikrofon açılmadan yapılır. Akış 16 kHz mono ses alır;
+cihaz bu biçimi desteklemiyorsa anlaşılır hata verilir. Mikrofon ayrı iş
+parçacığında yaklaşık 100 ms'lik blokları okur; CPU/int8 transkripsiyonu ses
+alımını bekletmez. Ses yalnızca bellekte tutulur; dosyaya yazılmaz.
+
+İki saniyede bir, en fazla altı saniyelik pencere çözülür (tam pencerelerde
+dört saniye örtüşme). `Geçici:` satırı aynı terminal satırında yenilenir.
+Son iki saniyedeki kelimeler geçicidir; daha eski kelimeler kesin satıra
+alınır. Kesinleşmiş zaman aralıkları ve aynı zamandaki eşleşen sınır kelimeleri
+yeniden yazılmaz; daha sonra gerçekten tekrarlanan sözler korunur. Bu,
+zaman tabanlı prototip bir kesinleştirme kuralıdır; tanıma hataları veya büyük
+kelime zaman kaymaları olabilir. Çok düşük seviyeli pencereler atlanır;
+diğerlerinde VAD sessizliği süzer. Gürültüde yanlış metin üretilebilir.
+
+Kesin satırlar sesin oturum içindeki başlangıç/bitiş zamanını ve şu değerleri
+gösterir (saniye):
+
+- `ilk`: satırdaki bütün kelimelerin ilk hipotezlerinin görüldüğü zamanların en büyüğü.
+- `kesin`: satırın kesin olarak yazıldığı zaman.
+- `ilk_gecikme` ve `kesin_gecikme`: bu zamanların satırın ses bitişine farkı.
+
+Her kelime için ilk hipotez zamanı bellekte korunur. Ses zamanları örnek
+sayısıyla, görünme/kesinleşme zamanları monoton saatle aynı oturum başlangıcına
+göre tutulur. Donanımın giriş gecikmesi ayrıca kalibre edilmez. Değişen bir
+kelimenin ilk zamanı yeni hipotezle başlar. İlk görünüm bazen doğrudan kesin
+satır olabilir. Bunlar kelime hata oranı veya doğruluk ölçümü değildir.
+
+İşlem yetişemezse en fazla 30 saniyelik ses kuyruklanır. Kuyruk veya cihaz
+tamponu taşarsa ses kaybını gizlemek yerine hata verilip oturum kapatılır;
+daha küçük çok dilli `--model base` veya `--model tiny` denenebilir.
+Süreli oturum sonunda kalan ses işlenir; bu yüzden son çıktı belirtilen
+süreden sonra gelebilir. Ctrl+C mikrofonu kapatır; kalan geçici metin zorla
+kesinleştirilmez. Modelin yürüyen CPU çağrısının kesintiyi işlemesi gecikebilir.
+
+Yerel kabul denemesi: birkaç saniye sessiz kalın, Türkçe bir cümle söyleyin,
+kısa bir aradan sonra aynı cümleyi yeniden söyleyin. Geçici metnin değişmesini,
+her sözün yalnızca bir kez kesinleşmesini ve gerçek tekrarın korunmasını
+kontrol edin. Ctrl+C'den sonra komutu yeniden başlatıp cihazın açıldığını doğrulayın.
+
+Otomatik kontroller:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m pip check
+```
+
+Model API kaynağı: [faster-whisper transkripsiyon kodu](https://github.com/SYSTRAN/faster-whisper/blob/master/faster_whisper/transcribe.py).
