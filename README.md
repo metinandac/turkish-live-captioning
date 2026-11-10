@@ -4,7 +4,8 @@ Ses ve görüntü destekli, konuşmacı ayrıştırmalı Türkçe canlı altyaz�
 üreten yerel bir masaüstü uygulaması geliştirmeyi amaçlayan bitirme projesi.
 
 **Aşama 01**, faster-whisper ile WAV dosyasından Türkçe transkripsiyon ekler.
-İşlem CPU üzerinde int8 ile çalışır. Mikrofon, kamera ve arayüz henüz eklenmemiştir.
+İşlem CPU üzerinde int8 ile çalışır. **Aşama 02**, bağımsız mikrofon kontrolü
+ekler. Kamera ve arayüz henüz eklenmemiştir.
 
 PyAV bağımlılığı `av<19` ile sınırlandırılır: faster-whisper 1.2.1'in kullandığı
 `metadata_errors` argümanı PyAV 19'da kaldırılmıştır. Kurulum komutu uyumlu
@@ -61,3 +62,35 @@ saniye cinsindendir. Otomatik tanıma hataları olabilir. Var olmayan dosya,
 model erişimi veya ses çözümleme hatası başarısız çıkış koduyla bildirilir.
 WAV dosyalarını, özel kayıtları, model ağırlıklarını ve sanal ortamı Git'e
 eklemeyin; ilgili yollar `.gitignore` ile dışlanır.
+
+## Mikrofon kontrolü (Aşama 02)
+
+Repo kökünde PowerShell ile kurulumu güncelleyin ve varsayılan mikrofonu deneyin:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e .
+.\.venv\Scripts\python.exe -m turkce_altyazi mic-check --seconds 5
+```
+
+Komut yaklaşık 100 ms'lik mono ses bloklarının toplam süresini, RMS seviyesini
+ve dBFS değerini gösterir. Sessizlikte `-inf` görülebilir; konuşurken RMS'nin
+artması ve dBFS'nin sıfıra yaklaşması beklenir. Bu değerler kalibre edilmiş
+ortam ses basıncı ölçümü değildir. Ses bellekte ölçülüp bırakılır; diske
+kaydedilmez ve Whisper'a gönderilmez.
+
+Cihaz listesindeki giriş kanalı olan bir cihazın numarasını veya adını seçin:
+
+```powershell
+.\.venv\Scripts\python.exe -m sounddevice
+.\.venv\Scripts\python.exe -m turkce_altyazi mic-check --seconds 5 --device 1
+```
+
+Numara örnektir; kendi listenize göre değiştirin. Windows Ayarlar > Gizlilik
+ve güvenlik > Mikrofon bölümünden mikrofon erişimini ve masaüstü uygulama
+erişimini açın. Geçersiz cihaz veya erişim sorunu anlaşılır hata ve başarısız
+çıkış kodu üretir. Süre dolunca veya Ctrl+C ile akış kapanır. Kontrol için
+komutu yeniden başlatıp mikrofonun tekrar açıldığını doğrulayın; ayrıca uzun
+bir `--seconds 30` denemesini Ctrl+C ile durdurun.
+
+Windows pip kurulumu PortAudio'yu beraberinde getirir:
+[sounddevice kurulum belgeleri](https://github.com/spatialaudio/python-sounddevice/blob/master/doc/installation.rst).
