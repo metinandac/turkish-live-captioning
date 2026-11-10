@@ -1,0 +1,24 @@
+# Python ve paketleme çıktıları
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+
+# Sanal ortamlar ve yerel erişim bilgileri
+.venv/
+venv/
+.env
+.env.*
+
+# Yerel modeller, veri setleri ve özel kayıtlar
+models/
+data/
+recordings/
+*.wav
+*.mp4
+*.pt
+*.pth
+*.onnx
+*.safetensors
